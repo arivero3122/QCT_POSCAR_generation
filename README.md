@@ -96,17 +96,17 @@ The notebook reads from the isolated-molecule `vasprun.xml`:
 
 The VASP normal-mode eigenvalues are converted to frequencies in cm<sup>-1</sup> through:
 
-\[
-\nu_k \;[\mathrm{cm}^{-1}] = \sqrt{|\lambda_k|}\times 33.35640951981521
-\]
+```text
+nu_k [cm^-1] = sqrt(|lambda_k|) * 33.35640951981521
+```
 
 where `33.35640951981521` is the THz-to-cm<sup>-1</sup> conversion factor used in the notebook.
 
 The angular frequency used internally is then:
 
-\[
-\omega_k = 2\pi c \nu_k
-\]
+```text
+omega_k = 2 * pi * c * nu_k
+```
 
 with `c` in cm/s, and finally converted to fs<sup>-1</sup>.
 
@@ -118,9 +118,9 @@ The mode occupations are controlled by:
 
 If `v_quantum = None`, the notebook uses:
 
-\[
+```text
 v_k = 0
-\]
+```
 
 for every vibrational mode, so every mode receives only its zero-point contribution.
 
@@ -136,9 +136,9 @@ then the notebook excites each vibrational mode `k` to the harmonic quantum numb
 
 For each vibrational mode `k`, the target harmonic vibrational energy is:
 
-\[
-E_k = \hbar \omega_k \left(v_k + \frac{1}{2}\right)
-\]
+```text
+E_k = hbar * omega_k * (v_k + 1/2)
+```
 
 This is exactly the formula implemented in the notebook.
 
@@ -153,37 +153,37 @@ The notebook does not put all of the energy into purely potential or purely kine
 
 Instead, for each mode it samples a random phase:
 
-\[
-\gamma_k \sim \mathcal{U}(0, 2\pi)
-\]
+```text
+gamma_k ~ Uniform(0, 2*pi)
+```
 
 and distributes the mode energy between displacement and velocity consistently with a classical harmonic oscillator.
 
 The normal-coordinate displacement amplitude is:
 
-\[
-Q_k = Q_{k,\max}\cos\gamma_k
-\]
+```text
+Q_k = Q_k,max * cos(gamma_k)
+```
 
 and the normal-coordinate velocity is:
 
-\[
-\dot{Q}_k = -\dot{Q}_{k,\max}\sin\gamma_k
-\]
+```text
+Qdot_k = -Qdot_k,max * sin(gamma_k)
+```
 
-with amplitudes chosen so that the total mode energy remains equal to \(E_k\).
+with amplitudes chosen so that the total mode energy remains equal to `E_k`.
 
 In the notebook, these amplitudes are built as:
 
-\[
-Q_{k,\max} = \sqrt{\frac{2E_k}{\lambda_k^{(\mathrm{cart})}}}
-\]
+```text
+Q_k,max = sqrt(2 * E_k / lambda_k,cart)
+```
 
 and
 
-\[
-\dot{Q}_{k,\max} = \sqrt{\frac{2E_k}{K_{\mathrm{conv}}}}
-\]
+```text
+Qdot_k,max = sqrt(2 * E_k / Kconv)
+```
 
 where the constants in the code convert the harmonic force constant and kinetic term into eV-consistent units.
 
@@ -191,19 +191,16 @@ where the constants in the code convert the harmonic force constant and kinetic 
 
 The sampled normal-mode displacements and velocities are then transformed back to Cartesian coordinates using the mass-weighted normal-mode matrix:
 
-\[
-\Delta \mathbf{r} = \mathbf{L}\mathbf{Q}
-\]
-
-\[
-\Delta \mathbf{v} = \mathbf{L}\dot{\mathbf{Q}}
-\]
+```text
+Delta r = L Q
+Delta v = L Qdot
+```
 
 where:
 
-- \(\mathbf{Q}\) contains the sampled normal-coordinate displacements
-- \(\dot{\mathbf{Q}}\) contains the sampled normal-coordinate velocities
-- \(\mathbf{L}\) is the mass-weighted mode matrix built from the VASP eigenvectors
+- `Q` contains the sampled normal-coordinate displacements
+- `Qdot` contains the sampled normal-coordinate velocities
+- `L` is the mass-weighted mode matrix built from the VASP eigenvectors
 
 The notebook then:
 
@@ -216,9 +213,9 @@ The notebook then:
 
 Internally, the sampled vibrational velocities are first built in:
 
-\[
-\text{\AA}/\mathrm{fs}
-\]
+```text
+Angstrom / fs
+```
 
 They are then converted to ASE internal velocity units through:
 
