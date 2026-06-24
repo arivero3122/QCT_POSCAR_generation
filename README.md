@@ -1,5 +1,7 @@
 # QCT POSCAR generator
 
+This fork is based on the original QCT POSCAR generation project by **Samuel Del Fre** (`SamDFr/QCT_POSCAR_generation`). The commits authored by Samuel Del Fre remain part of the project history. This fork contains additional workflow customizations and QCT/HPC organization changes maintained by **Alejandro Rivero**.
+
 This repository contains the `QCT_POSCAR_generator.ipynb` notebook used to build molecule/surface initial configurations for QCT workflows, and `MACE_quick_MD_check.ipynb` for short validation MD runs on the generated POSCAR files.
 
 The notebook is configured so you only provide VASP outputs as inputs. It reads `vasprun.xml` for the isolated molecule and the surface trajectory, then generates the molecular vibrational `.npz` cache automatically inside the notebook.

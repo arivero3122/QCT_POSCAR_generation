@@ -6,6 +6,8 @@ This repository is a fork of:
 https://github.com/SamDFr/QCT_POSCAR_generation
 ```
 
+The original project and its earlier commit history are credited to **Samuel Del Fre**. This fork keeps that history intact and adds Alejandro Rivero's local workflow customizations on top.
+
 Your fork is:
 
 ```text
