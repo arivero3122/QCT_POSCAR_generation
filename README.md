@@ -9,6 +9,7 @@ The notebook is configured so you only provide VASP outputs as inputs. It reads 
 ```text
 .
 ├── MACE_quick_MD_check.ipynb
+├── QCT_POSCAR_HPC_organizer_SO2.ipynb
 ├── QCT_POSCAR_generator.ipynb
 ├── model/
 │   └── mace-mh-1.model
@@ -16,7 +17,8 @@ The notebook is configured so you only provide VASP outputs as inputs. It reads 
 │   ├── molecule/
 │   └── surface/
 ├── outputs/
-│   └── qct_poscars/
+│   ├── qct_poscars/
+│   └── qct_poscars_hpc_SO2/
 └── requirements.txt
 ```
 
@@ -42,13 +44,15 @@ jupyter lab
 
 The notebook reads the following paths by default:
 
-- `inputs/molecule/vasprun.xml`
-- `inputs/surface/vasprun.xml`
+- `inputs/molecule/SO2/vasprun_SO2.xml`
+- `inputs/surface/HOPG_therm/vasprun-100K.xml`
+- `inputs/surface/HOPG_therm/vasprun-300K.xml`
+- `inputs/surface/HOPG_therm/vasprun-500K.xml`
 - `model/mace-mh-1.model` for the quick MACE MD check notebook
 
 The notebook also generates:
 
-- `inputs/molecule/vibrational_modes.npz`
+- `inputs/molecule/SO2/vibrational_modes-SO2.npz`
 
 ## Generality and assumptions
 
@@ -56,16 +60,57 @@ The workflow is generic with respect to the molecule and surface species: nothin
 
 The main assumptions are:
 
-- `inputs/molecule/vasprun.xml` must come from an isolated-molecule calculation that contains vibrational modes (`IBRION=5` or `IBRION=6`).
-- `inputs/surface/vasprun.xml` must contain an ionic trajectory that ASE can read as a sequence of frames.
+- The molecule `vasprun.xml` must come from an isolated-molecule calculation that contains vibrational modes (`IBRION=5` or `IBRION=6`).
+- Each surface `vasprun.xml` must contain an ionic trajectory that ASE can read as a sequence of frames.
 - The surface normal is assumed to be along `+z`, and the molecule is launched toward `-z`.
 - The molecule is treated as a free molecule for the ZPE initialization, so the vibrational modes must correspond to that isolated molecule, not to the adsorbed system.
 - An optional rigid-body rotational energy can be added on top of the ZPE by setting `ROTATION_SETTINGS["temperature_K"]` in `QCT_POSCAR_generator.ipynb`. Use `0.0` or `"0K"` to disable it.
 - Output POSCAR atom ordering is preserved intentionally.
 
-Generated POSCAR files and metadata are written to:
+The generator notebook writes normal POSCAR output to a run-specific subfolder:
 
-- `outputs/qct_poscars/`
+- `outputs/qct_poscars/<surface-temperature>/Ei*/`
+
+For example, if `PATHS["surface_vasprun"]` is `inputs/surface/HOPG_therm/vasprun-500K.xml` and `GENERATION["incident_energy_eV"] = 2`, the generated files are written to:
+
+```text
+outputs/qct_poscars/500K/Ei2/POSCAR-1..10
+outputs/qct_poscars/500K/Ei2/metadata.json
+```
+
+This folder is intended as the normal, temporary output of `QCT_POSCAR_generator.ipynb`. It is useful for interactive runs and quick checks, but it should not be used as the long-term cluster input archive.
+
+For HPC runs, use `QCT_POSCAR_HPC_organizer_SO2.ipynb` to copy and reindex the normal output into:
+
+- `outputs/qct_poscars_hpc_SO2/`
+
+The HPC structure is:
+
+```text
+outputs/qct_poscars_hpc_SO2/
+├── Ei0.1/
+│   ├── Ts100/poscars-rand-zpe/POSCAR-1..10
+│   ├── Ts300/poscars-rand-zpe/POSCAR-1..10
+│   └── Ts500/poscars-rand-zpe/POSCAR-1..10
+├── Ei0.3/
+├── Ei0.5/
+├── Ei1/
+└── Ei2/
+```
+
+Each `poscars-rand-zpe` folder contains `POSCAR-1` to `POSCAR-10` and a `metadata.json` file.
+The full generated set contains 150 initial conditions:
+
+```text
+3 surface temperatures x 5 incident energies x 10 configurations = 150 POSCAR files
+```
+
+For cluster submission workflows, two global index files are also written:
+
+- `outputs/qct_poscars_hpc_SO2/index.csv`
+- `outputs/qct_poscars_hpc_SO2/index.json`
+
+Each row maps one numerical `job_id` to a surface temperature, incident energy, configuration number, and POSCAR path. This is intended to make scheduler array jobs easier to launch without manually enumerating every folder.
 
 The quick MACE validation notebook writes short MD trajectories and plots under:
 
@@ -80,163 +125,88 @@ The quick MACE validation notebook writes short MD trajectories and plots under:
 - Set `ROTATION_SETTINGS["temperature_K"] = 0.0` or `"0K"` to deposit only the ZPE.
 - Set `ROTATION_SETTINGS["temperature_K"]` to a nonzero value in kelvin to add thermal rotational energy on top of the ZPE.
 
-## How vibrational energy is added
-
-The vibrational initialization in `QCT_POSCAR_generator.ipynb` is based on the **harmonic normal modes of the isolated molecule**.
-
-This means the notebook does **not** construct exact anharmonic vibrational eigenstates of the real molecule. Instead, it uses the standard harmonic approximation around the equilibrium geometry read from `inputs/molecule/vasprun.xml`.
-
-### 1. Normal modes and frequencies
-
-The notebook reads from the isolated-molecule `vasprun.xml`:
-
-- the equilibrium geometry
-- the normal-mode eigenvectors
-- the normal-mode eigenvalues
-
-The VASP normal-mode eigenvalues are converted to frequencies in cm<sup>-1</sup> through:
-
-```text
-nu_k [cm^-1] = sqrt(|lambda_k|) * 33.35640951981521
-```
-
-where `33.35640951981521` is the THz-to-cm<sup>-1</sup> conversion factor used in the notebook.
-
-The angular frequency used internally is then:
-
-```text
-omega_k = 2 * pi * c * nu_k
-```
-
-with `c` in cm/s, and finally converted to fs<sup>-1</sup>.
-
-### 2. Which vibrational level is used
-
-The mode occupations are controlled by:
-
-- `ZPE_SETTINGS["v_quantum"]`
-
-If `v_quantum = None`, the notebook uses:
-
-```text
-v_k = 0
-```
-
-for every vibrational mode, so every mode receives only its zero-point contribution.
-
-If you provide a list such as:
+The final validation cell in `QCT_POSCAR_generator.ipynb` rereads generated POSCAR velocity blocks recursively from a user-defined folder:
 
 ```python
-ZPE_SETTINGS["v_quantum"] = [0, 1, 0, 2, ...]
+VALIDATION_ROOT = Path("outputs/qct_poscars_hpc_SO2")
 ```
 
-then the notebook excites each vibrational mode `k` to the harmonic quantum number `v_k` specified in that list.
+It reports:
 
-### 3. Harmonic energy assigned to each mode
+- the number of POSCAR files found
+- the instantaneous surface-temperature range and average
+- the molecule center-of-mass incident energy
+- a failure if the incident energy or surface-temperature scale is inconsistent
 
-For each vibrational mode `k`, the target harmonic vibrational energy is:
+Run this final validation before organizing or submitting the files to the cluster.
+
+## HPC organization
+
+`QCT_POSCAR_HPC_organizer_SO2.ipynb` is a separate notebook for preparing the cluster input tree. It copies the normal generator output into the SO2 HPC folder convention:
 
 ```text
-E_k = hbar * omega_k * (v_k + 1/2)
+outputs/qct_poscars_hpc_SO2/Ei*/Ts*/poscars-rand-zpe/POSCAR-*
 ```
 
-This is exactly the formula implemented in the notebook.
+It also writes `index.csv` and `index.json` at the root of `outputs/qct_poscars_hpc_SO2`. The source cleanup option is disabled by default; set `CLEAN_SOURCE_AFTER_COPY = True` inside that notebook only when you want to empty the normal `outputs/qct_poscars` folder after copying.
 
-So:
+## Surface temperature issue and fix
 
-- `v_k = 0` gives the usual zero-point energy
-- `v_k = 1, 2, ...` gives higher harmonic vibrational excitation
+A unit-conversion problem was detected in the surface velocities written to the generated POSCAR files.
 
-### 4. Random phase sampling in each mode
+The surface velocities are read directly from the `vasprun.xml` files:
 
-The notebook does not put all of the energy into purely potential or purely kinetic form.
+- `inputs/surface/HOPG_therm/vasprun-100K.xml`
+- `inputs/surface/HOPG_therm/vasprun-300K.xml`
+- `inputs/surface/HOPG_therm/vasprun-500K.xml`
 
-Instead, for each mode it samples a random phase:
-
-```text
-gamma_k ~ Uniform(0, 2*pi)
-```
-
-and distributes the mode energy between displacement and velocity consistently with a classical harmonic oscillator.
-
-The normal-coordinate displacement amplitude is:
-
-```text
-Q_k = Q_k,max * cos(gamma_k)
-```
-
-and the normal-coordinate velocity is:
-
-```text
-Qdot_k = -Qdot_k,max * sin(gamma_k)
-```
-
-with amplitudes chosen so that the total mode energy remains equal to `E_k`.
-
-In the notebook, these amplitudes are built as:
-
-```text
-Q_k,max = sqrt(2 * E_k / lambda_k,cart)
-```
-
-and
-
-```text
-Qdot_k,max = sqrt(2 * E_k / Kconv)
-```
-
-where the constants in the code convert the harmonic force constant and kinetic term into eV-consistent units.
-
-### 5. From normal coordinates to Cartesian motion
-
-The sampled normal-mode displacements and velocities are then transformed back to Cartesian coordinates using the mass-weighted normal-mode matrix:
-
-```text
-Delta r = L Q
-Delta v = L Qdot
-```
-
-where:
-
-- `Q` contains the sampled normal-coordinate displacements
-- `Qdot` contains the sampled normal-coordinate velocities
-- `L` is the mass-weighted mode matrix built from the VASP eigenvectors
-
-The notebook then:
-
-- adds the Cartesian displacements to the equilibrium geometry
-- removes any residual center-of-mass translation
-- removes any residual rigid rotation
-- stores the resulting molecular velocities in ASE units
-
-### 6. Unit convention for velocities
-
-Internally, the sampled vibrational velocities are first built in:
-
-```text
-Angstrom / fs
-```
-
-They are then converted to ASE internal velocity units through:
+In VASP, the velocity block is in Angstrom/fs. ASE stores velocities internally in its own velocity units. The molecule velocities added by the ZPE and incident-energy routines were already converted with:
 
 ```python
-mol.set_velocities(delta_vel / units.fs)
+velocity / units.fs
 ```
 
-This is important because ASE does not store velocities directly in VASP `Angstrom/fs` units.
+but the surface velocities were previously inserted without this conversion:
 
-### 7. What this means physically
+```python
+atoms.set_velocities(vel)
+```
 
-The generated molecular vibrational state should be interpreted as:
+That made the surface velocities in the written POSCAR files too small when interpreted consistently with VASP units. The symptom was that the surface temperatures appeared far below the intended values when reading the POSCAR with ASE:
 
-- a **harmonic normal-mode initialization**
-- based on the **isolated free-molecule Hessian**
-- with the desired harmonic quantum numbers `v_k`
-- but represented as a phase-randomized semiclassical displacement/velocity realization in Cartesian space
+```text
+100K surfaces appeared near 0.9 K
+300K surfaces appeared near 3.1 K
+500K surfaces appeared near 4.8 K
+```
 
-So this is appropriate if you want to initialize trajectories consistently with harmonic mode occupations, including ZPE and optional higher mode excitation.
+The corrected line in `QCT_POSCAR_generator.ipynb` is:
 
-It is **not** an exact anharmonic quantum vibrational eigenstate of the full interacting molecule/surface system.
+```python
+atoms.set_velocities(vel / units.fs)
+```
+
+After regenerating the POSCAR files, direct validation of the POSCAR velocity blocks gives the expected instantaneous surface temperatures:
+
+```text
+100K folders: mean surface temperature about 98 K
+300K folders: mean surface temperature about 323 K
+500K folders: mean surface temperature about 495 K
+```
+
+These values are not exactly 100 K, 300 K, and 500 K for every individual POSCAR because each file uses one instantaneous snapshot from a thermal trajectory. The important check is that the averages and ranges are consistent with the intended thermal ensembles.
+
+The incident translational energies were also checked from the molecule center-of-mass velocity in the written POSCAR files:
+
+```text
+Ei0.1 -> 0.100000 eV
+Ei0.3 -> 0.300000 eV
+Ei0.5 -> 0.500000 eV
+Ei1   -> 1.000000 eV
+Ei2   -> 2.000000 eV
+```
+
+The existing POSCAR folders were regenerated after applying the surface velocity conversion fix.
 
 ## Quick MACE MD check
 
@@ -244,7 +214,7 @@ It is **not** an exact anharmonic quantum vibrational eigenstate of the full int
 
 It does the following:
 
-- reads one `outputs/qct_poscars/POSCAR_*`
+- reads one `outputs/qct_poscars/*K/Ei*/POSCAR-*`
 - reuses the positions and velocities stored in that POSCAR
 - attaches the local model `model/mace-mh-1.model`. MACE model can be downloaded here: [MACE models](https://huggingface.co/mace-foundations)
 - runs a short constant-energy NVE trajectory with `VelocityVerlet`

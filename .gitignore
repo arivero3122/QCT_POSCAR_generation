@@ -9,8 +9,13 @@ __pycache__/
 # Notebook and test artifacts
 outputs/qct_poscars/*
 !outputs/qct_poscars/.gitkeep
+outputs/qct_poscars_SO2/*
+!outputs/qct_poscars_SO2/.gitkeep
+outputs/qct_poscars_hpc_SO2/*
+!outputs/qct_poscars_hpc_SO2/.gitkeep
 outputs/mace_md_check/*
 !outputs/mace_md_check/.gitkeep
+codex_resume.txt
 
 # User-provided VASP inputs
 inputs/molecule/*
