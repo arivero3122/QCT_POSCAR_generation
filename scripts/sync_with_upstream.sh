@@ -44,14 +44,25 @@ echo "Fetching origin and upstream..."
 git fetch origin master
 git fetch upstream master
 
-echo
-echo "Current divergence:"
-echo "  origin/master  vs local master:   $(git rev-list --left-right --count origin/master...HEAD)"
-echo "  upstream/master vs local master:  $(git rev-list --left-right --count upstream/master...HEAD)"
+read -r origin_ahead local_ahead_origin < <(git rev-list --left-right --count origin/master...HEAD)
+read -r upstream_ahead local_ahead_upstream < <(git rev-list --left-right --count upstream/master...HEAD)
 
 echo
-echo "Files changed in upstream since your current base:"
-git diff --name-status HEAD..upstream/master || true
+echo "Current divergence:"
+echo "  origin commits not in local:    ${origin_ahead}"
+echo "  local commits not in origin:    ${local_ahead_origin}"
+echo "  upstream commits not in local:  ${upstream_ahead}"
+echo "  local commits not in upstream:  ${local_ahead_upstream}"
+
+echo
+if [[ "${upstream_ahead}" == "0" ]]; then
+  echo "No new upstream commits need to be integrated."
+  echo "Your fork currently contains ${local_ahead_upstream} commit(s) not present upstream."
+else
+  merge_base="$(git merge-base HEAD upstream/master)"
+  echo "Files changed by upstream commits not yet integrated locally:"
+  git diff --name-status "${merge_base}"..upstream/master || true
+fi
 
 echo
 if [[ "${apply_changes}" != "true" ]]; then
@@ -61,6 +72,11 @@ if [[ "${apply_changes}" != "true" ]]; then
   echo "  ./scripts/sync_with_upstream.sh --apply"
   echo
   echo "This is intentionally conservative because this fork contains substantial customizations."
+  exit 0
+fi
+
+if [[ "${upstream_ahead}" == "0" ]]; then
+  echo "Nothing to apply from upstream. Exiting without rebase."
   exit 0
 fi
 
