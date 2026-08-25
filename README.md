@@ -19,8 +19,14 @@ The notebook is configured so you only provide VASP outputs as inputs. It reads 
 │   ├── molecule/
 │   └── surface/
 ├── outputs/
+│   ├── 3_HHOPG_layers/
+│   ├── 4_HOPG_layers/
 │   ├── qct_poscars/
-│   └── qct_poscars_hpc_SO2/
+│   └── mace_md_check/
+├── scripts/
+│   ├── generate_hpc_4layers.py
+│   ├── publish_update.sh
+│   └── sync_with_upstream.sh
 └── requirements.txt
 ```
 
@@ -82,14 +88,21 @@ outputs/qct_poscars/500K/Ei2/metadata.json
 
 This folder is intended as the normal, temporary output of `QCT_POSCAR_generator.ipynb`. It is useful for interactive runs and quick checks, but it should not be used as the long-term cluster input archive.
 
-For HPC runs, use `QCT_POSCAR_HPC_organizer_SO2.ipynb` to copy and reindex the normal output into:
+For HPC runs, use `QCT_POSCAR_HPC_organizer_SO2.ipynb` to copy and reindex the normal output into an HPC tree.
 
-- `outputs/qct_poscars_hpc_SO2/`
+The current generated datasets are organized by surface model:
+
+- `outputs/3_HHOPG_layers/`: existing 3-layer HOPG outputs grouped in one folder.
+- `outputs/4_HOPG_layers/`: newly generated 4-layer HOPG HPC-ready initial conditions.
+
+The legacy 3-layer HPC output was grouped under:
+
+- `outputs/3_HHOPG_layers/qct_poscars_hpc_SO2/`
 
 The HPC structure is:
 
 ```text
-outputs/qct_poscars_hpc_SO2/
+outputs/3_HHOPG_layers/qct_poscars_hpc_SO2/
 ├── Ei0.1/
 │   ├── Ts100/poscars-rand-zpe/POSCAR-1..10
 │   ├── Ts300/poscars-rand-zpe/POSCAR-1..10
@@ -109,10 +122,37 @@ The full generated set contains 150 initial conditions:
 
 For cluster submission workflows, two global index files are also written:
 
-- `outputs/qct_poscars_hpc_SO2/index.csv`
-- `outputs/qct_poscars_hpc_SO2/index.json`
+- `outputs/3_HHOPG_layers/qct_poscars_hpc_SO2/index.csv`
+- `outputs/3_HHOPG_layers/qct_poscars_hpc_SO2/index.json`
 
 Each row maps one numerical `job_id` to a surface temperature, incident energy, configuration number, and POSCAR path. This is intended to make scheduler array jobs easier to launch without manually enumerating every folder.
+
+For the 4-layer HOPG surface, `scripts/generate_hpc_4layers.py` generates a separate HPC tree directly from:
+
+```text
+inputs/surface/HOPG_therm_4layers/vasprun-100K.xml
+inputs/surface/HOPG_therm_4layers/vasprun-300K.xml
+inputs/surface/HOPG_therm_4layers/vasprun-500K.xml
+```
+
+The 4-layer output is:
+
+```text
+outputs/4_HOPG_layers/Ei*/Ts*/poscars-rand-zpe/POSCAR-*
+outputs/4_HOPG_layers/index.csv
+outputs/4_HOPG_layers/index.json
+```
+
+The latest 4-layer generation check found:
+
+```text
+150 POSCAR files
+15 batch metadata files
+150 index rows
+0 bad index paths
+128 surface atoms per POSCAR
+source_surface_family = HOPG_therm_4layers
+```
 
 The quick MACE validation notebook writes short MD trajectories and plots under:
 

@@ -1,4 +1,5 @@
 .venv/
+.cache/
 __pycache__/
 *.py[cod]
 .ipynb_checkpoints/
@@ -13,6 +14,10 @@ outputs/qct_poscars_SO2/*
 !outputs/qct_poscars_SO2/.gitkeep
 outputs/qct_poscars_hpc_SO2/*
 !outputs/qct_poscars_hpc_SO2/.gitkeep
+outputs/3_HHOPG_layers/*
+!outputs/3_HHOPG_layers/.gitkeep
+outputs/4_HOPG_layers/*
+!outputs/4_HOPG_layers/.gitkeep
 outputs/mace_md_check/*
 !outputs/mace_md_check/.gitkeep
 codex_resume.txt
