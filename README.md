@@ -19,7 +19,7 @@ The notebook is configured so you only provide VASP outputs as inputs. It reads 
 │   ├── molecule/
 │   └── surface/
 ├── outputs/
-│   ├── 3_HHOPG_layers/
+│   ├── 3_HOPG_layers/
 │   ├── 4_HOPG_layers/
 │   ├── qct_poscars/
 │   └── mace_md_check/
@@ -92,17 +92,17 @@ For HPC runs, use `QCT_POSCAR_HPC_organizer_SO2.ipynb` to copy and reindex the n
 
 The current generated datasets are organized by surface model:
 
-- `outputs/3_HHOPG_layers/`: existing 3-layer HOPG outputs grouped in one folder.
+- `outputs/3_HOPG_layers/`: existing 3-layer HOPG outputs grouped in one folder.
 - `outputs/4_HOPG_layers/`: newly generated 4-layer HOPG HPC-ready initial conditions.
 
 The legacy 3-layer HPC output was grouped under:
 
-- `outputs/3_HHOPG_layers/qct_poscars_hpc_SO2/`
+- `outputs/3_HOPG_layers/qct_poscars_hpc_SO2/`
 
 The HPC structure is:
 
 ```text
-outputs/3_HHOPG_layers/qct_poscars_hpc_SO2/
+outputs/3_HOPG_layers/qct_poscars_hpc_SO2/
 ├── Ei0.1/
 │   ├── Ts100/poscars-rand-zpe/POSCAR-1..10
 │   ├── Ts300/poscars-rand-zpe/POSCAR-1..10
@@ -122,8 +122,8 @@ The full generated set contains 150 initial conditions:
 
 For cluster submission workflows, two global index files are also written:
 
-- `outputs/3_HHOPG_layers/qct_poscars_hpc_SO2/index.csv`
-- `outputs/3_HHOPG_layers/qct_poscars_hpc_SO2/index.json`
+- `outputs/3_HOPG_layers/qct_poscars_hpc_SO2/index.csv`
+- `outputs/3_HOPG_layers/qct_poscars_hpc_SO2/index.json`
 
 Each row maps one numerical `job_id` to a surface temperature, incident energy, configuration number, and POSCAR path. This is intended to make scheduler array jobs easier to launch without manually enumerating every folder.
 
